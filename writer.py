@@ -1,9 +1,9 @@
 import argparse
 import asyncio
+import json
 import os
-import logging
 
-import dotenv
+import utils
 
 
 def get_arguments_parser():
@@ -11,38 +11,50 @@ def get_arguments_parser():
     parser = argparse.ArgumentParser(formatter_class=formatter_class)
     parser.add_argument('--host', type=str, default=os.getenv('HOST'), help='set host')
     parser.add_argument('--port', type=int, default=os.getenv('PORT_WRITER'), help='set port')
-    parser.add_argument('--history', type=str, default=os.getenv('HISTORY'), help='set path to history file')
+    parser.add_argument('--token', type=str, default=os.getenv('TOKEN'), help='set your token')
+    parser.add_argument('--message', type=str, help='write your message')
+    parser.add_argument('--nickname', type=str, default=os.getenv('NICKNAME'), help='set your nickname')
     return parser
 
 
 async def main():
+    args = utils.get_args(get_arguments_parser)
+    if not args.message:
+        return None
+    reader, writer = await asyncio.open_connection(host=args.host, port=args.port)
+    if args.token:
+        await authorise(writer, reader, args.token, args.nickname)
+    else:
+        await register(writer, reader, args.nickname)
+    await submit_message(writer, args.message)
 
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s: %(message)s',
-        datefmt='%H:%M:%S',
-    )
 
-    dotenv.load_dotenv()
-    parser = get_arguments_parser()
-    args = parser.parse_args()
+async def register(writer, reader, nickname):
+    if not nickname:
+        nickname = input('Укажите ваш ник для регистрации: ').replace('\n', ' ')
+    writer.write(f'{nickname}\n'.encode())
+    await writer.drain()
+    answer = (await reader.readline()).decode()
+    return json.loads(answer)
 
-    while True:
-        try:
-            reader, writer = await asyncio.open_connection(host=args.host, port=args.port)
 
-            writer.write(os.getenv('TOKEN').encode())
-            writer.write('\n'.encode())
-            await writer.drain()
-            message = 'gtrhtrhtr\n\n'
-            writer.write(message.encode())
-            await writer.drain()
-            logging.info(message)
-            await writer.drain()
-        except ConnectionRefusedError:
-            print('Нет соединения. Повторная попытка')
-            sleep(3)
-            continue
+async def authorise(writer, reader, token, nickname):
+    writer.write(f'{token}\n'.encode())
+    await reader.readline()
+    answer = (await reader.readline()).decode()
+    if answer == 'null\n':
+        await reader.readline()
+        print('Неизвестный токен. Проверьте его или зарегистрируйте заново.')
+        return await register(writer, reader, nickname)
+    else:
+        return json.loads(answer)
+
+
+async def submit_message(writer, message):
+    message = message.replace('\n', ' ')
+    writer.write(f'{message}\n\n'.encode())
+    await writer.drain()
+
 
 if __name__ == '__main__':
     asyncio.run(main())
