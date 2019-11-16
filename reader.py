@@ -1,9 +1,9 @@
 import argparse
 import asyncio
-import logging
 import os
 from datetime import datetime
-
+from socket import gaierror
+from concurrent.futures import TimeoutError
 from aiofile import AIOFile
 
 import utils
@@ -19,34 +19,42 @@ def get_arguments_parser():
 
 
 async def main():
-    utils.get_logging_config()
     args = utils.get_args(get_arguments_parser)
     attempt = 0
-    reader, writer = await asyncio.open_connection(host=args.host, port=args.port)
+
     while True:
         try:
+            reader, writer = await asyncio.open_connection(host=args.host, port=args.port)
             if attempt:
-                logging.info('Установлено соединение')
+                await write_message_to_file(args.history, 'Установлено соединение\n')
                 attempt = 0
             message = await get_message_text(reader)
-            logging.info(message)
-            async with AIOFile(args.history, 'a') as my_file:
-                await my_file.write(message)
-        except (ConnectionResetError, ConnectionRefusedError):
+            await write_message_to_file(args.history, message)
+        except (ConnectionRefusedError, ConnectionResetError, gaierror, TimeoutError):
             attempt += 1
-            if attempt < 3:
-                logging.info('Нет соединения. Повторная попытка')
+            if attempt <= 3:
+                error_message = 'Нет соединения. Повторная попытка\n'
+                await write_message_to_file(args.history, error_message)
             else:
-                logging.info('Нет соединения. Повторная попытка через 3 сек.')
+                error_message = 'Нет соединения. Повторная попытка через 3 сек.\n'
+                await write_message_to_file(args.history, error_message)
                 await asyncio.sleep(3)
                 continue
+        finally:
+            writer.close()
 
 
 async def get_message_text(reader):
-    message_text = (await reader.readline()).decode()
-    message_date = datetime.strftime(datetime.now(), '%y.%m.%d %H:%M')
-    message = f'[{message_date}] {message_text}'
+    data = await asyncio.wait_for(reader.readline(), timeout=5)
+    message = data.decode()
     return message
+
+
+async def write_message_to_file(file, message_text):
+    async with AIOFile(file, 'a') as my_file:
+        message_date = datetime.strftime(datetime.now(), '%y.%m.%d %H:%M')
+        message = f'[{message_date}] {message_text}'
+        await my_file.write(message)
 
 
 if __name__ == '__main__':

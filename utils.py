@@ -9,7 +9,7 @@ def get_args(get_arguments_parser):
     return parser.parse_args()
 
 
-def get_logger_config():
+def set_logging_config():
     logging.basicConfig(
         level=logging.INFO,
         format='%(asctime)s: %(message)s',
