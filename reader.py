@@ -1,9 +1,10 @@
 import argparse
 import asyncio
 import os
+from concurrent.futures import TimeoutError
 from datetime import datetime
 from socket import gaierror
-from concurrent.futures import TimeoutError
+
 from aiofile import AIOFile
 
 import utils
