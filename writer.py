@@ -21,12 +21,15 @@ async def main():
     args = utils.get_args(get_arguments_parser)
     if not args.message:
         return None
-    reader, writer = await asyncio.open_connection(host=args.host, port=args.port)
-    if args.token:
-        await authorise(writer, reader, args.token, args.nickname)
-    else:
-        await register(writer, reader, args.nickname)
-    await submit_message(writer, args.message)
+    try:
+        reader, writer = await asyncio.open_connection(host=args.host, port=args.port)
+        if args.token:
+            await authorise(writer, reader, args.token, args.nickname)
+        else:
+            await register(writer, reader, args.nickname)
+        await submit_message(writer, args.message)
+    finally:
+        writer.close()
 
 
 async def register(writer, reader, nickname):
