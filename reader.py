@@ -19,7 +19,7 @@ def get_arguments_parser():
 
 
 async def main():
-    utils.logging_config()
+    utils.get_logging_config()
     args = utils.get_args(get_arguments_parser)
     attempt = 0
     reader, writer = await asyncio.open_connection(host=args.host, port=args.port)
