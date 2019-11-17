@@ -34,7 +34,8 @@ async def main():
 
 async def register(writer, reader, nickname):
     if not nickname:
-        nickname = input('Укажите ваш ник для регистрации: ').replace('\n', ' ')
+        nickname = input('Укажите ваш ник для регистрации: ')
+    nickname = nickname.replace('\n', ' ')
     writer.write(f'{nickname}\n'.encode())
     await writer.drain()
     answer = (await reader.readline()).decode()
