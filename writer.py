@@ -22,20 +22,23 @@ async def main():
     if not args.message:
         return None
     try:
+        if not args.nickname:
+            args.nickname = input('Укажите ваш ник для регистрации: ')
+        nickname = args.nickname.replace('\n', ' ')
         reader, writer = await asyncio.open_connection(host=args.host, port=args.port)
+        is_authorized = False
         if args.token:
-            await authorise(writer, reader, args.token, args.nickname)
-        else:
-            await register(writer, reader, args.nickname)
+            is_authorized = await authorise(writer, reader, args.token, nickname)
+            if not is_authorized:
+                print('Неизвестный токен. Проверьте его или зарегистрируйте заново.')
+        if not is_authorized:
+            await register(writer, reader, nickname)
         await submit_message(writer, args.message)
     finally:
         writer.close()
 
 
 async def register(writer, reader, nickname):
-    if not nickname:
-        nickname = input('Укажите ваш ник для регистрации: ')
-    nickname = nickname.replace('\n', ' ')
     writer.write(f'{nickname}\n'.encode())
     await writer.drain()
     answer = (await reader.readline()).decode()
@@ -46,12 +49,8 @@ async def authorise(writer, reader, token, nickname):
     writer.write(f'{token}\n'.encode())
     await reader.readline()
     answer = (await reader.readline()).decode()
-    if answer == 'null\n':
-        await reader.readline()
-        print('Неизвестный токен. Проверьте его или зарегистрируйте заново.')
-        return await register(writer, reader, nickname)
-    else:
-        return json.loads(answer)
+    await reader.readline()
+    return answer != 'null\n'
 
 
 async def submit_message(writer, message):
