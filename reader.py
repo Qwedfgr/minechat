@@ -27,10 +27,10 @@ async def main():
         try:
             reader, writer = await asyncio.open_connection(host=args.host, port=args.port)
             if attempt:
-                await write_message_to_file(args.history, 'Установлено соединение\n')
+                print(await write_message_to_file(args.history, 'Установлено соединение\n'))
                 attempt = 0
             message = await get_message_text(reader)
-            await write_message_to_file(args.history, message)
+            print(await write_message_to_file(args.history, message))
         except (ConnectionRefusedError, ConnectionResetError, gaierror, TimeoutError):
             attempt += 1
             if attempt <= 3:
@@ -38,7 +38,7 @@ async def main():
                 await write_message_to_file(args.history, error_message)
             else:
                 error_message = 'Нет соединения. Повторная попытка через 3 сек.\n'
-                await write_message_to_file(args.history, error_message)
+                print(await write_message_to_file(args.history, error_message))
                 await asyncio.sleep(3)
                 continue
         finally:
@@ -56,7 +56,7 @@ async def write_message_to_file(file, message_text):
         message_date = datetime.strftime(datetime.now(), '%y.%m.%d %H:%M')
         message = f'[{message_date}] {message_text}'
         await my_file.write(message)
-
+    return message
 
 if __name__ == '__main__':
     asyncio.run(main())
